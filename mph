@@ -595,7 +595,14 @@ namespace mph::inline v5_0_5 {
 #pragma once
 #pragma GCC system_header
 
-#if __has_include(<experimental/simd>)
+#include <cstdint>
+
+#ifndef MPH_EXPERIMENTAL_SIMD
+#define MPH_EXPERIMENTAL_SIMD 0
+#endif
+
+#if __GLIBCXX__ && __has_include(<experimental/simd>)
+#define MPH_EXPERIMENTAL_SIMD 1
 #include <experimental/simd>
 #endif
 
@@ -1114,7 +1121,7 @@ struct find$pext {
   utility::array<key_mapped_type, mask_type(1) << __builtin_popcountl(mask)> lut{};
 };
 
-#if __has_include(<experimental/simd>)
+#if MPH_EXPERIMENTAL_SIMD
 template<const auto& entries, u32 BucketSize>
 struct find$simd {
   using key_type = typename detail::traits<entries>::key_type;
@@ -1180,7 +1187,7 @@ template<const auto& entries> inline constexpr auto lookup =
 template<const auto& entries> inline constexpr auto find =
   []<u8 probability = 50u>
     requires (probability >= 0u and probability <= 100u)
-    #if not __has_include(<experimental/simd>)
+    #if not MPH_EXPERIMENTAL_SIMD
     and (entries.size() <= 64u)
     #endif
     ([[maybe_unused]] const auto& key, [[maybe_unused]] const auto&... ts) {
@@ -1197,7 +1204,7 @@ template<const auto& entries> inline constexpr auto find =
       return type_traits::constant_t<find$pext<entries>>::value.template
         operator()<probability>(key, ts...);
     }
-    #if __has_include(<experimental/simd>)
+    #if MPH_EXPERIMENTAL_SIMD
     else {
       constexpr auto bucket_size = std::experimental::simd_size_v<key_type, std::experimental::simd_abi::native<key_type>>;
       return type_traits::constant_t<find$simd<entries, bucket_size>>::value.template
@@ -1208,6 +1215,9 @@ template<const auto& entries> inline constexpr auto find =
 } // namespace mph
 
 #ifndef NTEST
+
+#include <array>
+
 static_assert(([] {
   constexpr auto expect = [](bool cond) { if (not cond) { void failed(); failed(); } };
 
